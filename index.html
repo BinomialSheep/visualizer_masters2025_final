@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ゴミ回収ビジュアライザ + GIF (自動 3 MB 未満)</title>
+    <style>
+      :root {
+        --bg: #1a1a1a;
+        --panel: #222;
+        --sidebar: #1e1e1e;
+        --text: #ddd;
+        --accent: #ff9800;
+        --grid: #444;
+        --axis: #888;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, sans-serif;
+      }
+      #container {
+        display: flex;
+        height: 100%;
+      }
+      #sidebar {
+        width: 320px;
+        min-width: 260px;
+        background: var(--sidebar);
+        border-right: 1px solid #444;
+        display: flex;
+        flex-direction: column;
+      }
+      #titlebar {
+        padding: 0.8rem 1rem;
+        background: var(--panel);
+        border-bottom: 1px solid #444;
+        font-size: 1.1rem;
+        font-weight: bold;
+      }
+      #controls {
+        padding: 1rem;
+        flex: 1;
+        overflow: auto;
+        font-size: 0.9rem;
+      }
+      label {
+        font-weight: 600;
+      }
+      textarea {
+        width: 100%;
+        height: 140px;
+        margin-top: 0.3rem;
+        padding: 0.4rem;
+        background: #111;
+        color: var(--text);
+        border: 1px solid #444;
+        border-radius: 4px;
+        resize: vertical;
+        font-family: monospace;
+        font-size: 0.85rem;
+      }
+      button {
+        margin-top: 0.7rem;
+        padding: 0.45rem 1.2rem;
+        font-weight: bold;
+        font-size: 0.85rem;
+        background: var(--accent);
+        color: #000;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        filter: brightness(1.1);
+      }
+      input[type="range"] {
+        width: 100%;
+      }
+      #legend {
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .legend-color {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+      }
+      #player {
+        margin-top: 1.1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      #btnRow {
+        display: flex;
+        gap: 0.5rem;
+      }
+      #stepInfo,
+      #encInfo {
+        font-size: 0.8rem;
+        text-align: right;
+      }
+      #encInfo {
+        color: var(--accent);
+      }
+      #main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas {
+        background: #2e2e2e;
+        width: 800px;
+        height: 800px;
+        max-width: 90vmin;
+        max-height: 90vmin;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <aside id="sidebar">
+        <div id="titlebar">燃えるごみ回収ビジュアライザ</div>
+        <div id="controls">
+          <label for="inputText">Input (X Y Z + 座標):</label>
+          <textarea id="inputText"></textarea>
+
+          <label for="outputText" style="margin-top: 1rem">Output (xL yL xR yR xL yL xR yR):</label>
+          <textarea id="outputText"></textarea>
+
+          <button id="loadBtn">Load Output</button>
+
+          <div id="legend">
+            <!-- ゴミ種 -->
+            <div class="legend-item"><span class="legend-color" style="background: red"></span>燃えるごみ</div>
+            <div class="legend-item"><span class="legend-color" style="background: blue"></span>燃えないごみ</div>
+            <div class="legend-item"><span class="legend-color" style="background: green"></span>資源ごみ</div>
+            <hr style="width: 100%; border-color: #444" />
+            <!-- 手 -->
+            <div class="legend-item"><span class="legend-color" style="background: #ffeb3b"></span>高橋 左</div>
+            <div class="legend-item"><span class="legend-color" style="background: #ff9800"></span>高橋 右</div>
+            <div class="legend-item"><span class="legend-color" style="background: #00e5ff"></span>青木 左</div>
+            <div class="legend-item"><span class="legend-color" style="background: #2196f3"></span>青木 右</div>
+          </div>
+
+          <div id="player">
+            <div id="btnRow">
+              <button id="playBtn">▶ Play</button>
+              <button id="recBtn">● Record GIF</button>
+            </div>
+            <input type="range" id="stepSlider" min="0" max="0" value="0" />
+            <div id="stepInfo">0 / 0</div>
+            <div id="encInfo"></div>
+          </div>
+        </div>
+      </aside>
+
+      <main id="main"><canvas id="canvas" width="800" height="800"></canvas></main>
+    </div>
+
+    <!-- gif.js と gif.worker.js は同一フォルダに配置 -->
+    <script src="gif.js"></script>
+
+    <script>
+      /* ====== 定数 ====== */
+      const FIELD = 1e6,
+        GRID = 100,
+        LABEL_EVERY = 10;
+      const TCOL = ["red", "blue", "green"],
+        HCOL = ["#ffeb3b", "#ff9800", "#00e5ff", "#2196f3"];
+      const R_T = 4,
+        R_H = 6;
+
+      /* ====== GIF 制限 ====== */
+      const MAX_BYTES = 3 * 1024 * 1024; // 3 MB
+      const GIF_W = 600,
+        GIF_H = 600; // 出力解像度
+      const QUALITY = 0; // 0(最高)〜30(最低)
+      const BASE_DELAY = 10;
+
+      /* ====== 状態 ====== */
+      let trash = [],
+        steps = [],
+        collected = [],
+        cur = 0;
+      let playing = false,
+        rafId = null;
+
+      /* ====== Canvas & UI ====== */
+      const cvs = document.getElementById("canvas"),
+        ctx = cvs.getContext("2d");
+      const inputTA = document.getElementById("inputText"),
+        outputTA = document.getElementById("outputText");
+      const loadBtn = document.getElementById("loadBtn"),
+        playBtn = document.getElementById("playBtn");
+      const recBtn = document.getElementById("recBtn"),
+        slider = document.getElementById("stepSlider");
+      const stepInfo = document.getElementById("stepInfo"),
+        encInfo = document.getElementById("encInfo");
+
+      /* ====== util ====== */
+      const fx = (v) => (v / FIELD) * 800,
+        fy = (v) => 800 - (v / FIELD) * 800;
+      const cross = (ax, ay, bx, by) => ax * by - ay * bx;
+      const inside = (p, a, b, c) => {
+        const c1 = cross(b.x - a.x, b.y - a.y, p.x - a.x, p.y - a.y),
+          c2 = cross(c.x - b.x, c.y - b.y, p.x - b.x, p.y - b.y),
+          c3 = cross(a.x - c.x, a.y - c.y, p.x - c.x, p.y - c.y);
+        return (c1 >= 0 && c2 >= 0 && c3 >= 0) || (c1 <= 0 && c2 <= 0 && c3 <= 0);
+      };
+
+      /* ====== 描画 ====== */
+      function clear() {
+        ctx.clearRect(0, 0, 800, 800);
+      }
+      function drawGrid() {
+        const s = 8;
+        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = "var(--grid)";
+        ctx.beginPath();
+        for (let i = 0; i <= GRID; i++) {
+          const p = i * s + 0.5;
+          ctx.moveTo(p, 0);
+          ctx.lineTo(p, 800);
+          ctx.moveTo(0, p);
+          ctx.lineTo(800, p);
+        }
+        ctx.stroke();
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = "var(--axis)";
+        ctx.beginPath();
+        ctx.moveTo(0.5, 0);
+        ctx.lineTo(0.5, 800);
+        ctx.moveTo(0, 799.5);
+        ctx.lineTo(800, 799.5);
+        ctx.stroke();
+        ctx.fillStyle = "var(--text)";
+        ctx.font = "10px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        for (let i = 0; i <= GRID; i += LABEL_EVERY) {
+          const p = i * s,
+            l = ((i * FIELD) / GRID).toLocaleString();
+          ctx.fillText(l, p, 796);
+        }
+      }
+      function drawTrash(step) {
+        trash.forEach((g, i) => {
+          if (collected[i] <= step) return;
+          ctx.beginPath();
+          ctx.arc(fx(g.x), fy(g.y), R_T, 0, Math.PI * 2);
+          ctx.fillStyle = TCOL[g.t];
+          ctx.fill();
+        });
+      }
+      function drawHands(step) {
+        if (!steps.length) return;
+        const [TL, TR, AL, AR] = steps[step];
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#bbb";
+        ctx.beginPath();
+        ctx.moveTo(fx(TL.x), fy(TL.y));
+        ctx.lineTo(fx(TR.x), fy(TR.y));
+        ctx.moveTo(fx(AL.x), fy(AL.y));
+        ctx.lineTo(fx(AR.x), fy(AR.y));
+        ctx.stroke();
+        [TL, TR, AL, AR].forEach((p, i) => {
+          ctx.beginPath();
+          ctx.arc(fx(p.x), fy(p.y), R_H, 0, Math.PI * 2);
+          ctx.fillStyle = HCOL[i];
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "#000";
+          ctx.stroke();
+        });
+      }
+      function render(step) {
+        clear();
+        drawGrid();
+        drawTrash(step);
+        drawHands(step);
+      }
+
+      /* ====== パース ====== */
+      function parseInput(t) {
+        const l = t.trim().split(/\r?\n/).filter(Boolean);
+        if (!l.length) return [];
+        let idx = 0;
+        const [X, Y, Z] = l[idx++].split(/\s+/).map(Number),
+          N = X + Y + Z;
+        const arr = [];
+        for (let i = 0; i < N && idx < l.length; i++) {
+          const [a, b] = l[idx++].split(/\s+/).map(Number);
+          arr.push({ x: a, y: b, t: i < X ? 0 : i < X + Y ? 1 : 2 });
+        }
+        return arr;
+      }
+      function parseOutput(t) {
+        return t
+          .trim()
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .map((l) => {
+            const a = l.split(/\s+/).map(Number);
+            return a.length === 8
+              ? [
+                  { x: a[0], y: a[1] },
+                  { x: a[2], y: a[3] },
+                  { x: a[4], y: a[5] },
+                  { x: a[6], y: a[7] },
+                ]
+              : null;
+          })
+          .filter(Boolean);
+      }
+
+      /* ====== 回収前計算 ====== */
+      function calcCollected() {
+        collected = trash.map(() => Infinity);
+        for (let s = 1; s < steps.length; s++) {
+          const p = steps[s - 1],
+            c = steps[s],
+            [TL0, TR0, AL0, AR0] = p,
+            [TL1, TR1, AL1, AR1] = c;
+          trash.forEach((g, i) => {
+            if (collected[i] !== Infinity) return;
+            if (g.t === 0 && (inside(g, TL0, TR0, TL1) || inside(g, TL1, TR0, TR1))) collected[i] = s;
+            else if (g.t === 1 && (inside(g, AL0, AR0, AL1) || inside(g, AL1, AR0, AR1))) collected[i] = s;
+          });
+        }
+      }
+
+      /* ====== UI ====== */
+      function updateUI() {
+        slider.value = cur;
+        stepInfo.textContent = `${cur} / ${Math.max(steps.length - 1, 0)}`;
+      }
+
+      /* ====== 再生ループ ====== */
+      function stepLoop() {
+        if (!playing) return;
+        cur = Math.min(cur + 1, steps.length - 1);
+        render(cur);
+        updateUI();
+        if (cur === steps.length - 1) {
+          playing = false;
+          playBtn.textContent = "▶ Play";
+          rafId = null;
+        } else rafId = requestAnimationFrame(stepLoop);
+      }
+
+      /* ====== イベント ====== */
+      inputTA.addEventListener("input", () => {
+        trash = parseInput(inputTA.value);
+        collected = trash.map(() => Infinity);
+        if (steps.length) calcCollected();
+        render(cur);
+        updateUI();
+      });
+      loadBtn.addEventListener("click", () => {
+        steps = parseOutput(outputTA.value);
+        if (!steps.length) return alert("Output が不正");
+        if (!trash.length) return alert("Input が未入力");
+        cur = 0;
+        slider.min = 0;
+        slider.max = steps.length - 1;
+        calcCollected();
+        render(cur);
+        updateUI();
+      });
+      playBtn.addEventListener("click", () => {
+        if (!steps.length) return;
+        playing = !playing;
+        playBtn.textContent = playing ? "⏸ Pause" : "▶ Play";
+        if (playing) {
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = requestAnimationFrame(stepLoop);
+        } else if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+      });
+      slider.addEventListener("input", (e) => {
+        playing = false;
+        playBtn.textContent = "▶ Play";
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        cur = +e.target.value;
+        render(cur);
+        updateUI();
+      });
+
+      /* ====== GIF Recorder ====== */
+      recBtn.addEventListener("click", () => {
+        if (!steps.length || !trash.length) return alert("Input / Output をロードしてください");
+
+        /* --- skip を自動決定 (概算 1frame ≈ 90 kB) --- */
+        let skip = 1;
+        while (Math.ceil(steps.length / skip) * 90 * 1024 > MAX_BYTES) skip++;
+
+        recBtn.disabled = true;
+        recBtn.textContent = "⏳";
+        encInfo.textContent = "";
+
+        const gif = new GIF({
+          workers: 2,
+          quality: QUALITY,
+          dither: false,
+          workerScript: "gif.worker.js",
+          width: GIF_W,
+          height: GIF_H,
+          background: "#1a1a1a",
+        });
+
+        gif.on("progress", (p) => (encInfo.textContent = `encoding… ${(p * 100) | 0}%`));
+        gif.on("finished", (blob) => {
+          recBtn.disabled = false;
+          recBtn.textContent = "● Record GIF";
+          encInfo.textContent = "";
+          if (blob.size > MAX_BYTES) return alert(`GIF ${(blob.size / 1048576).toFixed(2)} MB > 3 MB`);
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "animation.gif";
+          a.click();
+        });
+
+        const tmp = document.createElement("canvas");
+        tmp.width = GIF_W;
+        tmp.height = GIF_H;
+        const tctx = tmp.getContext("2d");
+
+        for (let s = 0; s < steps.length; s += skip) {
+          render(s); // 800×800 表示用
+          tctx.clearRect(0, 0, GIF_W, GIF_H);
+          tctx.drawImage(cvs, 0, 0, GIF_W, GIF_H);
+          gif.addFrame(tctx, { copy: true, delay: BASE_DELAY * skip });
+        }
+        gif.render();
+      });
+    </script>
+  </body>
+</html>
