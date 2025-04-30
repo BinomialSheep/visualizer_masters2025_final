@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { gen } from '../../../public/wasm/rust';
+import { gen } from '/wasm/rust';
 
 export const useDownloadInput = (): {
   downloadInput: (

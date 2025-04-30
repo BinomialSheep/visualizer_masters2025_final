@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { useState, useCallback } from 'react';
 import GIF from 'gif.js';
-import { vis } from '../../../public/wasm/rust';
+import { vis } from '/wasm/rust';
 import type { VisualizerSettingInfo } from '../../types';
 
 type SvgViewerProps = {
