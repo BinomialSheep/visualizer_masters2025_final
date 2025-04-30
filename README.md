@@ -2,7 +2,6 @@
 ## 問題
 https://atcoder.jp/contests/masters2025-final-open
 
-
 ## サイトURL
 
 https://binomialsheep.github.io/visualizer_masters2025_final/
