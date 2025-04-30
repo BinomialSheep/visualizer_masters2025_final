@@ -1,41 +1,51 @@
 import JSZip from 'jszip';
-import { gen } from '/wasm/rust';
 
+/** 入力 ZIP を生成してダウンロードさせるカスタムフック */
 export const useDownloadInput = (): {
   downloadInput: (
-    seed: number,
-    problemNumber: string,
-    downloadCases: number,
-    setButtonText: (content: string) => void,
-  ) => void;
-} => {
-  const downloadInput = (
     seed: number,
     problemId: string,
     downloadCases: number,
     setButtonText: (content: string) => void,
-  ): void => {
+  ) => Promise<void>;
+} => {
+  /** Download ボタンが押されたときの処理 */
+  const downloadInput = async (
+    seed: number,
+    problemId: string,
+    downloadCases: number,
+    setButtonText: (content: string) => void,
+  ): Promise<void> => {
+    /* ─────────────── wasm を動的ロード ─────────────── */
+    // Vite のバンドル対象にさせないために @vite-ignore を付ける
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const { gen } = await import(/* @vite-ignore */ '/wasm/rust');
+    /* ──────────────────────────────────────────────── */
+
     const zip = new JSZip();
+
     for (let i = 0; i < downloadCases; i++) {
-      const inputString = gen(seed + i, problemId);
-      zip.file((seed + i).toString().padStart(4, '0') + '.txt', inputString);
+      const inputString = gen(seed + i, problemId); // gen は 2 引数のまま
+      zip.file(`${String(seed + i).padStart(4, '0')}.txt`, inputString);
     }
-    /* eslint-disable*/
-    zip
-      .generateAsync({ type: 'blob' }, (e) => {
-        setButtonText(
-          String(Math.round(e.percent)).padStart(3, ' ') + '% finished',
-        );
-      })
+
+    await zip
+      .generateAsync(
+        { type: 'blob' },
+        (e) =>
+          setButtonText(
+            `${Math.round(e.percent).toString().padStart(3, ' ')}% finished`,
+          ),
+      )
       .then((blob) => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'in.zip';
         a.click();
-        window.URL.revokeObjectURL(a.href);
+        URL.revokeObjectURL(a.href);
         setButtonText('Download');
       });
-    /* eslint-enable */
   };
 
   return { downloadInput };

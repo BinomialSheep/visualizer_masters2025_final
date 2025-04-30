@@ -1,9 +1,15 @@
+// vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tsconfigPaths from 'vite-tsconfig-paths';
+import path from 'path';
 
 export default defineConfig({
-  // GitHub Pages の URL
-  base: '/visualizer_masters2025_final/',   // ←★ここを必ず設定
-  plugins: [react(), tsconfigPaths()],
+  plugins: [react()],
+  resolve: {
+    alias: {
+      // 「import ... from '/wasm/rust'」という仮想パスを
+      // 実際にビルド後 public に置かれる JS へマッピングする
+      '/wasm/rust': path.resolve(__dirname, 'public/wasm/rust.js'),
+    },
+  },
 });
