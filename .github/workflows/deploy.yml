@@ -17,16 +17,20 @@ jobs:
           target: wasm32-unknown-unknown
           profile: minimal
 
+      # wasm-pack を取得
+      - uses: taiki-e/install-action@v2   # ←★ここを追加
+        with:
+          tool: wasm-pack@0.12.1          # バージョン固定推奨
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'yarn'           # ← yarn の依存キャッシュを有効化
+          cache: yarn
 
-      # ここだけ変更
       - run: yarn install --frozen-lockfile
 
       - run: wasm-pack build wasm --target web --out-dir public/wasm
-      - run: yarn build          # ← npm run build → yarn build
+      - run: yarn build
 
       - uses: peaceiris/actions-gh-pages@v3
         with:
