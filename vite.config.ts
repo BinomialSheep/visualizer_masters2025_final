@@ -4,12 +4,15 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  /* ----------★ 1. GH Pages 用ベースパス ---------- */
   base: '/visualizer_masters2025_final/',
+
   plugins: [react()],
+
+  /* ----------★ 2. Rust→WASM の仮想パスを解決 ---------- */
   resolve: {
     alias: {
-      // 「import ... from '/wasm/rust'」という仮想パスを
-      // 実際にビルド後 public に置かれる JS へマッピングする
+      // ビルド結果:  /visualizer_masters2025_final/wasm/rust.js
       '/wasm/rust': path.resolve(__dirname, 'public/wasm/rust.js'),
     },
   },

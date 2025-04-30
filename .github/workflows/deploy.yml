@@ -35,7 +35,7 @@ jobs:
         working-directory: ./wasm
         run: |
           wasm-pack build --target web \
-                          --out-dir ../public/wasm \
+                          --out-dir public/wasm \
                           --out-name rust
 
       - run: yarn build # (= tsc && vite build → dist/)
