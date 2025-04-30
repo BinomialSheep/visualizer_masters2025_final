@@ -1,4 +1,3 @@
-# .github/workflows/deploy.yml
 name: Deploy to GitHub Pages
 
 on:
@@ -12,22 +11,18 @@ jobs:
       contents: write
 
     steps:
-      # 1. clone
       - uses: actions/checkout@v4
 
-      # 2. rust (wasm32)
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: wasm32-unknown-unknown
           profile: minimal
 
-      # 3. install wasm-pack
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-pack@0.12.1
 
-      # 4. node  / yarn
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -35,20 +30,17 @@ jobs:
 
       - run: yarn install --frozen-lockfile
 
-      # 5-A. build wasm
+      # ---------- 修正版 ----------
       - name: Build Wasm
-        working-directory: ./wasm # ← crate 直下で実行
+        working-directory: ./wasm
         run: |
-          wasm-pack build \
-            --target web \
-            --out-dir ../public/wasm \      # ← ルートの public/wasm へ
-            --out-name rust                 #   rust.js / rust_bg.wasm を生成
+          wasm-pack build --target web \
+                          --out-dir ../public/wasm \
+                          --out-name rust
 
-      # 5-B. React build (tsc + vite)
-      - run: yarn build # dist/ に吐き出される
+      - run: yarn build # (= tsc && vite build → dist/)
 
-      # 6. deploy
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist # ← そのまま
+          publish_dir: ./dist
