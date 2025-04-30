@@ -24,7 +24,7 @@ type Wasm = {
 const loadWasm = async (): Promise<Wasm> =>
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  await import(/* @vite-ignore */ '/wasm/rust');
+  await import(/* @vite-ignore */ `${import.meta.env.BASE_URL}wasm/rust.js`);
 
 type Props = { visualizerSettingInfo: VisualizerSettingInfo };
 
