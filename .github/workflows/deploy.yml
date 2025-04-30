@@ -3,30 +3,31 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      # Rust + wasm32
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: wasm32-unknown-unknown
           profile: minimal
 
-      # Node (React)
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'yarn'           # ← yarn の依存キャッシュを有効化
 
-      - run: npm ci
+      # ここだけ変更
+      - run: yarn install --frozen-lockfile
+
       - run: wasm-pack build wasm --target web --out-dir public/wasm
-      - run: npm run build
+      - run: yarn build          # ← npm run build → yarn build
 
-      # gh-pages ブランチへ公開
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
