@@ -4,7 +4,6 @@
 //! * 依存クレートは README 指定バージョンに合わせること
 //! * 乱数生成・入力生成ロジックは問題文を忠実に実装
 
-use itertools::Itertools;
 use proconio::input;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
@@ -15,29 +14,6 @@ use svg::Document;
 
 // -----------------------------------------------------------------------------
 // ユーティリティ共通  (元 util.rs と同じ)
-pub trait SetMinMax {
-    fn setmin(&mut self, v: Self) -> bool;
-    fn setmax(&mut self, v: Self) -> bool;
-}
-impl<T> SetMinMax for T
-where
-    T: PartialOrd,
-{
-    #[inline]
-    fn setmin(&mut self, v: T) -> bool {
-        *self > v && {
-            *self = v;
-            true
-        }
-    }
-    #[inline]
-    fn setmax(&mut self, v: T) -> bool {
-        *self < v && {
-            *self = v;
-            true
-        }
-    }
-}
 #[macro_export]
 macro_rules! mat {
     ($($e:expr),*) => { Vec::from(vec![$($e),*]) };
@@ -260,7 +236,7 @@ fn gen_category(
 }
 
 /// gen: seed から Input を生成
-pub fn gen(seed: u64) -> Input {
+pub fn gen(seed: u64, _problem_id: String) -> Input {
     let mut rng = ChaCha20Rng::seed_from_u64(seed);
     const X: usize = 100;
     let ty = (seed % 3) as u8; // 0:A,1:B,2:C
