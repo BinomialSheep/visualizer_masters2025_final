@@ -1,0 +1,15 @@
+# Node
+node_modules/
+
+# Rust
+wasm/target/
+wasm/pkg/
+
+# Production bundles
+build/
+dist/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.log
