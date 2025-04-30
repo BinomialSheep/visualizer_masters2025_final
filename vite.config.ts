@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  base: '/visualizer_masters2025_final/',
   plugins: [react()],
   resolve: {
     alias: {

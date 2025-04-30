@@ -39,6 +39,7 @@ jobs:
                           --out-name rust
 
       - run: yarn build # (= tsc && vite build → dist/)
+      - run: cp dist/index.html dist/404.html
 
       - uses: peaceiris/actions-gh-pages@v3
         with:
